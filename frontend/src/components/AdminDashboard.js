@@ -24,7 +24,7 @@ const AdminDashboard = () => {
 
   // Check admin role
   useEffect(() => {
-    if (!token || user?.ས. role !== 'admin') {
+    if (!token || user?.role !== 'admin') {
       navigate('/login');
     }
   }, [token, user, navigate]);
