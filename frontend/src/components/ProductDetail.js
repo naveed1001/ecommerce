@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'; // ✅ Added Li
 import { useSelector, useDispatch } from 'react-redux';
 import { getProduct, addToWishlist, removeFromWishlist, addReview, getUserProfile } from '../services/api'; // ✅ Added getUserProfile
 import { addToCart } from '../redux/slices/cartSlice';
+import { getImageUrl } from '../utils/image';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -91,7 +92,7 @@ const handleAddToCart = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <img
-            src={product.image || 'https://via.placeholder.com/300'}
+            src={getImageUrl(product.image) || 'https://via.placeholder.com/300'}
             alt={product.name}
             className="w-full max-w-md h-auto object-cover rounded"
           />

@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserProfile, removeFromWishlist } from '../services/api';
 import { addToCart } from '../redux/slices/cartSlice';
+import { getImageUrl } from '../utils/image';
 
 const Wishlist = () => {
   const dispatch = useDispatch();
@@ -71,7 +72,7 @@ const Wishlist = () => {
           {wishlist.map((product) => (
             <div key={product._id} className="border p-4 rounded shadow">
               <img
-                src={product.image || 'https://via.placeholder.com/150'}
+                src={getImageUrl(product.image) || 'https://via.placeholder.com/150'}
                 alt={product.name}
                 className="w-full h-48 object-cover mb-2 rounded"
               />

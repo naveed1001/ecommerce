@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { getProducts } from '../services/api';
 import { addToCart } from '../redux/slices/cartSlice';
+import { getImageUrl } from '../utils/image';
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -53,7 +54,7 @@ const Home = () => {
           {products.map((product) => (
             <div key={product._id} className="border p-4 rounded shadow hover:shadow-lg transition">
               <img
-                src={product.image || 'https://via.placeholder.com/150'}
+                src={getImageUrl(product.image) || 'https://via.placeholder.com/150'}
                 alt={product.name}
                 className="w-full h-48 object-cover mb-2 rounded"
               />
