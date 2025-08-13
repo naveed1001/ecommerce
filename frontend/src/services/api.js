@@ -1,50 +1,58 @@
+// services/api.js
 import axios from 'axios';
 
-const API = axios.create({ baseURL: process.env.REACT_APP_API_URL });
+// Determine API base URL from environment or fallback to browser origin
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  (typeof window !== 'undefined'
+    ? `${window.location.origin}/api`
+    : undefined);
 
-API.interceptors.request.use((req) => {
-  const token = localStorage.getItem('token');
-  if (token) req.headers.Authorization = `Bearer ${token}`;
-  return req;
-});
+const API = axios.create({ baseURL: API_BASE_URL });
 
-
-// Update token on each request
+// Attach token to every request if available
 API.interceptors.request.use((config) => {
-  config.headers.Authorization = `Bearer ${localStorage.getItem('token')}`;
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Auth
+// ---------- Auth ----------
 export const register = (data) => API.post('/auth/register', data);
 export const login = (data) => API.post('/auth/login', data);
 
-// Products
+// ---------- Products ----------
 export const getProducts = (params) => API.get('/products', { params });
 export const getProduct = (id) => API.get(`/products/${id}`);
 export const createProduct = (data) => API.post('/products', data);
 export const updateProduct = (id, data) => API.put(`/products/${id}`, data);
 export const deleteProduct = (id) => API.delete(`/products/${id}`);
-export const addReview = (id, data) => API.post(`/products/${id}/reviews`, data);
+export const addReview = (id, data) =>
+  API.post(`/products/${id}/reviews`, data);
 
-// Categories
+// ---------- Categories ----------
 export const getCategories = () => API.get('/categories');
 export const createCategory = (data) => API.post('/categories', data);
-export const updateCategory = (id, data) => API.put(`/categories/${id}`, data);
+export const updateCategory = (id, data) =>
+  API.put(`/categories/${id}`, data);
 export const deleteCategory = (id) => API.delete(`/categories/${id}`);
 
-// Orders
+// ---------- Orders ----------
 export const createOrder = (data) => API.post('/orders', data);
 export const getOrders = () => API.get('/orders');
 export const getOrder = (id) => API.get(`/orders/${id}`);
 export const updateOrder = (id, data) => API.put(`/orders/${id}`, data);
 export const deleteOrder = (id) => API.delete(`/orders/${id}`);
-export const updateOrderToPaid = (id, paymentResult) => API.post(`/orders/${id}/pay`, { paymentResult });
+export const updateOrderToPaid = (id, paymentResult) =>
+  API.post(`/orders/${id}/pay`, { paymentResult });
 
-// Users
+// ---------- Users ----------
 export const getUserProfile = () => API.get('/users/profile');
-export const updateUserProfile = (data) => API.put('/users/profile', data);
-export const addToWishlist = (productId) => API.post('/users/wishlist', { productId });
-export const removeFromWishlist = (productId) => API.delete(`/users/wishlist/${productId}`);
+export const updateUserProfile = (data) =>
+  API.put('/users/profile', data);
+export const addToWishlist = (productId) =>
+  API.post('/users/wishlist', { productId });
+export const removeFromWishlist = (productId) =>
+  API.delete(`/users/wishlist/${productId}`);
 export const getAllUsers = () => API.get('/users');
 export const deleteUser = (id) => API.delete(`/users/${id}`);

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { addToCart } from '../redux/slices/cartSlice';
+import { getImageUrl } from '../utils/image';
 
 const ProductCard = ({ product }) => {
   const dispatch = useDispatch();
@@ -22,7 +23,7 @@ const ProductCard = ({ product }) => {
   return (
     <div className="border p-4 rounded shadow">
       <img
-        src={product.image || 'https://via.placeholder.com/300'}
+        src={getImageUrl(product.image) || 'https://via.placeholder.com/300'}
         alt={product.name}
         className="w-full h-48 object-cover"
       />

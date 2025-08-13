@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { getUserProfile, updateUserProfile, removeFromWishlist, getOrders } from '../services/api';
 import { addToCart } from '../redux/slices/cartSlice';
 import { Link } from 'react-router-dom';
+import { getImageUrl } from '../utils/image';
 
 const UserDashboard = () => {
   const dispatch = useDispatch();
@@ -146,7 +147,7 @@ const UserDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {wishlist.map((product) => (
               <div key={product._id} className="border p-4 rounded shadow">
-                <img src={product.image} alt={product.name} className="w-full h-48 object-cover mb-2" />
+                <img src={getImageUrl(product.image)} alt={product.name} className="w-full h-48 object-cover mb-2" />
                 <h3 className="text-lg font-medium">{product.name}</h3>
                 <p>${product.price.toFixed(2)}</p>
                 <div className="flex space-x-2">
