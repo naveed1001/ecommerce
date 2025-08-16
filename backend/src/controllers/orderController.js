@@ -40,7 +40,7 @@ const createOrder = async (req, res, next) => {
     const order = new Order({
       user: req.user.id,
       products: orderProducts,
-      shippingAddress,
+      shippingAddress, // Now an object { street, city, postalCode, country, notes }
       paymentMethod,
       totalPrice,
     });

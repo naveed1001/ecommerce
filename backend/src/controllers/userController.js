@@ -34,7 +34,7 @@ const updateUserProfile = async (req, res, next) => {
     user.name = req.body.name || user.name;
     user.email = req.body.email || user.email;
     if (req.body.password) user.password = req.body.password;
-    if (req.file) user.profileImage = req.file.path; // Save image path
+    if (req.file) user.profileImage = req.file.path;
 
     await user.save();
 
@@ -115,4 +115,35 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
-module.exports = { getUserProfile, updateUserProfile, addToWishlist, removeFromWishlist, getAllUsers, deleteUser };
+const updateUserRole = async (req, res, next) => {
+  try {
+    const { role } = req.body;
+    if (!['user', 'admin', 'superadmin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Prevent superadmin from changing their own role
+    if (user._id.toString() === req.user.id) {
+      return res.status(403).json({ message: 'Cannot change your own role' });
+    }
+
+    user.role = role;
+    const updatedUser = await user.save();
+    res.json({
+      id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      profileImage: updatedUser.profileImage || '',
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getUserProfile, updateUserProfile, addToWishlist, removeFromWishlist, getAllUsers, deleteUser, updateUserRole };

@@ -5,7 +5,7 @@ import {
   getProducts, createProduct, updateProduct, deleteProduct,
   getCategories, createCategory, updateCategory, deleteCategory,
   getOrders, updateOrder, deleteOrder,
-  getAllUsers, deleteUser
+  getAllUsers, deleteUser, updateUserRole
 } from '../services/api';
 import ConfirmationModal from './ConfirmationModel';
 
@@ -18,7 +18,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null); // Added for success feedback
+  const [success, setSuccess] = useState(null);
   const [productForm, setProductForm] = useState({ name: '', description: '', price: '', category: '', stock: 0, image: null });
   const [categoryForm, setCategoryForm] = useState({ name: '' });
   const [editingProduct, setEditingProduct] = useState(null);
@@ -26,9 +26,9 @@ const AdminDashboard = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({ itemType: '', itemId: '', itemName: '', onConfirm: () => {} });
 
-  // Check admin role
+  // Check admin or superadmin role
   useEffect(() => {
-    if (!token || user?.role !== 'admin') {
+    if (!token || !['admin', 'superadmin'].includes(user?.role)) {
       navigate('/login');
     }
   }, [token, user, navigate]);
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
           setError('Invalid user data received');
         }
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load data');
+        setError(err.message || 'Failed to load data');
         setProducts([]);
         setCategories([]);
         setOrders([]);
@@ -97,33 +97,22 @@ const AdminDashboard = () => {
       }
     });
 
-    // Debug FormData
-    for (let [key, value] of formData.entries()) {
-      console.log(`FormData ${key}:`, value);
-    }
-
     try {
       if (editingProduct) {
-        console.log('Updating product with ID:', editingProduct._id);
         const res = await updateProduct(editingProduct._id, formData);
-        console.log('Update API response:', res.data);
         setProducts(products.map(p => p._id === editingProduct._id ? res.data : p));
         setEditingProduct(null);
-        setSuccess('Product updated successfully'); // Added success feedback
+        setSuccess('Product updated successfully');
       } else {
-        console.log('Creating new product');
         const res = await createProduct(formData);
-        console.log('Create API response:', res.data);
         setProducts([...products, res.data]);
-        setSuccess('Product created successfully'); // Added success feedback
+        setSuccess('Product created successfully');
       }
       setProductForm({ name: '', description: '', price: '', category: '', stock: 0, image: null });
-      setError(null); // Clear any previous errors
-      // Clear success message after 3 seconds
+      setError(null);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error('Error during product submission:', err);
-      setError(err.response?.data?.message || 'Failed to save product. Check console for details.');
+      setError(err.message || 'Failed to save product');
     }
   };
 
@@ -135,17 +124,17 @@ const AdminDashboard = () => {
         const res = await updateCategory(editingCategory._id, categoryForm);
         setCategories(categories.map(c => c._id === editingCategory._id ? res.data : c));
         setEditingCategory(null);
-        setSuccess('Category updated successfully'); // Added success feedback
+        setSuccess('Category updated successfully');
       } else {
         const res = await createCategory(categoryForm);
         setCategories([...categories, res.data]);
-        setSuccess('Category created successfully'); // Added success feedback
+        setSuccess('Category created successfully');
       }
       setCategoryForm({ name: '' });
       setError(null);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save category');
+      setError(err.message || 'Failed to save category');
     }
   };
 
@@ -153,7 +142,7 @@ const AdminDashboard = () => {
   const handleDeleteProduct = async (id) => {
     await deleteProduct(id);
     setProducts(products.filter(p => p._id !== id));
-    setSuccess('Product deleted successfully'); // Added success feedback
+    setSuccess('Product deleted successfully');
     setTimeout(() => setSuccess(null), 3000);
   };
 
@@ -161,7 +150,7 @@ const AdminDashboard = () => {
   const handleDeleteCategory = async (id) => {
     await deleteCategory(id);
     setCategories(categories.filter(c => c._id !== id));
-    setSuccess('Category deleted successfully'); // Added success feedback
+    setSuccess('Category deleted successfully');
     setTimeout(() => setSuccess(null), 3000);
   };
 
@@ -169,16 +158,28 @@ const AdminDashboard = () => {
   const handleDeleteOrder = async (id) => {
     await deleteOrder(id);
     setOrders(orders.filter(o => o._id !== id));
-    setSuccess('Order deleted successfully'); // Added success feedback
+    setSuccess('Order deleted successfully');
     setTimeout(() => setSuccess(null), 3000);
   };
 
   // Handle user deletion
   const handleDeleteUser = async (id) => {
     await deleteUser(id);
-    setUsers(users.filter(u => u._id !== id));
-    setSuccess('User deleted successfully'); // Added success feedback
+    setUsers(users.filter(u => u.id !== id));
+    setSuccess('User deleted successfully');
     setTimeout(() => setSuccess(null), 3000);
+  };
+
+  // Handle user role update
+  const handleUpdateUserRole = async (id, role) => {
+    try {
+      const res = await updateUserRole(id, role);
+      setUsers(users.map(u => u.id === id ? { ...u, role: res.data.role } : u));
+      setSuccess(`User role updated to ${role}`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to update user role');
+    }
   };
 
   // Open confirmation modal
@@ -198,16 +199,15 @@ const AdminDashboard = () => {
     try {
       const res = await updateOrder(id, { isDelivered });
       setOrders(orders.map(o => o._id === id ? { ...o, isDelivered: res.data.isDelivered } : o));
-      setSuccess(`Order marked as ${isDelivered ? 'delivered' : 'undelivered'}`); // Added success feedback
+      setSuccess(`Order marked as ${isDelivered ? 'delivered' : 'undelivered'}`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update order status');
+      setError(err.message || 'Failed to update order status');
     }
   };
 
   // Handle edit product click
   const handleEditProduct = (product) => {
-    console.log('Editing product:', product); // Debug
     setEditingProduct(product);
     setProductForm({
       name: product.name || '',
@@ -215,7 +215,7 @@ const AdminDashboard = () => {
       price: product.price || '',
       category: product.category?._id || product.category || '',
       stock: product.stock || 0,
-      image: null // File input can't be pre-filled
+      image: null,
     });
   };
 
@@ -238,17 +238,17 @@ const AdminDashboard = () => {
   return (
     <div className="container mx-auto px-6 py-12 bg-gradient-to-br from-gray-50 via-white to-gray-100 min-h-screen font-inter">
       <h1 className="text-3xl font-bold text-center tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500 mb-8">
-        Admin Dashboard
+        Your Dashboard
       </h1>
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-xl shadow-md">
+        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-xl shadow-md animate-slide-up">
           {success}
         </div>
       )}
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-xl shadow-md">
+        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-xl shadow-md animate-slide-up">
           {error}
         </div>
       )}
@@ -264,7 +264,7 @@ const AdminDashboard = () => {
       />
 
       {/* Product Management */}
-      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
         <form onSubmit={handleProductSubmit} className="max-w-md space-y-4">
           <div>
@@ -357,7 +357,7 @@ const AdminDashboard = () => {
             <p className="text-gray-600 text-base font-medium">No products found.</p>
           ) : (
             products.map(p => (
-              <div key={p._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center">
+              <div key={p._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center animate-slide-up">
                 <div>
                   <p className="text-base font-semibold text-gray-900">{p.name}</p>
                   <p className="text-sm text-gray-600">${p.price.toFixed(2)}</p>
@@ -384,7 +384,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Category Management */}
-      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
         <form onSubmit={handleCategorySubmit} className="max-w-md space-y-4">
           <div>
@@ -422,7 +422,7 @@ const AdminDashboard = () => {
             <p className="text-gray-600 text-base font-medium">No categories found.</p>
           ) : (
             categories.map(c => (
-              <div key={c._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center">
+              <div key={c._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center animate-slide-up">
                 <p className="text-base font-semibold text-gray-900">{c.name}</p>
                 <div className="flex space-x-3">
                   <button
@@ -445,14 +445,14 @@ const AdminDashboard = () => {
       </div>
 
       {/* Order Management */}
-      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Orders</h2>
         {orders.length === 0 ? (
           <p className="text-gray-600 text-base font-medium">No orders found.</p>
         ) : (
           <div className="grid gap-4">
             {orders.map(o => (
-              <div key={o._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center">
+              <div key={o._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center animate-slide-up">
                 <div>
                   <p className="text-base font-semibold text-gray-900">Order ID: {o._id}</p>
                   <p className="text-sm text-gray-600">Total: ${o.totalPrice.toFixed(2)}</p>
@@ -479,7 +479,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* User Management */}
-      <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Users</h2>
         {users.length === 0 ? (
           <p className="text-gray-600 text-base font-medium">No users found.</p>
@@ -487,7 +487,7 @@ const AdminDashboard = () => {
           <div className="grid gap-4">
             {users.map(u => (
               <div
-                key={u._id}
+                key={u.id}
                 className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center"
               >
                 <div>
@@ -495,12 +495,26 @@ const AdminDashboard = () => {
                   <p className="text-sm text-gray-600">{u.email}</p>
                   <p className="text-sm text-gray-600">Role: {u.role}</p>
                 </div>
-                <button
-                  onClick={() => openModal('user', u._id, u.name, handleDeleteUser)}
-                  className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
-                >
-                  Delete
-                </button>
+                <div className="flex space-x-3">
+                  {user.role === 'superadmin' && (
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleUpdateUserRole(u.id, e.target.value)}
+                      className="bg-gray-50/50 backdrop-blur-sm border border-gray-200 rounded-xl p-2 text-sm font-medium text-gray-900 focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={u.id === user.id}
+                    >
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                      <option value="superadmin">Superadmin</option>
+                    </select>
+                  )}
+                  <button
+                    onClick={() => openModal('user', u.id, u.name, handleDeleteUser)}
+                    className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -509,11 +523,18 @@ const AdminDashboard = () => {
 
       <style>
         {`
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    .font-inter {
-      font-family: 'Inter', sans-serif;
-    }
-  `}
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+          .font-inter {
+            font-family: 'Inter', sans-serif;
+          }
+          .animate-slide-up {
+            animation: slideUp 0.5s ease-in-out;
+          }
+          @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+        `}
       </style>
     </div>
   );

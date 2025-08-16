@@ -40,9 +40,9 @@ const Header = () => {
               <Link to="/dashboard" className="text-base font-semibold text-white hover:bg-white/10 rounded-full px-4 py-2 transition-all duration-300 hover:shadow-md hover:scale-105">
                 Dashboard
               </Link>
-              {user?.role === 'admin' && (
+              {['admin', 'superadmin'].includes(user?.role) && (
                 <Link to="/admin" className="text-base font-semibold text-white hover:bg-white/10 rounded-full px-4 py-2 transition-all duration-300 hover:shadow-md hover:scale-105">
-                  Admin
+                  {user?.role}
                 </Link>
               )}
               <button

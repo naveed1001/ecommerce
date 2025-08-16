@@ -15,7 +15,8 @@ const register = async (req, res, next) => {
       name,
       email,
       password,
-      profileImage: req.file ? req.file.path : '' // Save image path if uploaded
+      role: 'user',
+      profileImage: req.file ? req.file.path : '',
     });
     await user.save();
 
@@ -28,10 +29,10 @@ const register = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        profileImage: user.profileImage, // Include profile image
+        profileImage: user.profileImage || '',
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      }
+        updatedAt: user.updatedAt,
+      },
     });
   } catch (err) {
     next(err);
@@ -58,10 +59,10 @@ const login = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        profileImage: user.profileImage, // Include profile image
+        profileImage: user.profileImage || '',
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      }
+        updatedAt: user.updatedAt,
+      },
     });
   } catch (err) {
     next(err);

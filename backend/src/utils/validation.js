@@ -40,7 +40,13 @@ const orderSchema = Joi.object({
     )
     .min(1)
     .required(),
-  shippingAddress: Joi.string().required(),
+  shippingAddress: Joi.object({
+    street: Joi.string().trim().min(1).required(),
+    city: Joi.string().trim().min(1).required(),
+    postalCode: Joi.string().trim().min(1).required(),
+    country: Joi.string().trim().min(1).required(),
+    notes: Joi.string().trim().allow('').optional(),
+  }).required(),
   paymentMethod: Joi.string().required(),
   paymentResult: Joi.object({
     id: Joi.string().optional(),

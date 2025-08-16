@@ -69,5 +69,6 @@ export const addToWishlist = (productId) => API.post('/users/wishlist', { produc
 export const removeFromWishlist = (productId) => API.delete(`/users/wishlist/${productId}`);
 export const getAllUsers = () => API.get('/users');
 export const deleteUser = (id) => API.delete(`/users/${id}`);
+export const updateUserRole = (id, role) => API.put(`/users/${id}/role`, { role });
 
 export default API;

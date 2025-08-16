@@ -14,8 +14,17 @@ const protect = (req, res, next) => {
 };
 
 const admin = (req, res, next) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+  if (!['admin', 'superadmin'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Admin or Superadmin access required' });
+  }
   next();
 };
 
-module.exports = { protect, admin };
+const superadmin = (req, res, next) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ message: 'Superadmin access required' });
+  }
+  next();
+};
+
+module.exports = { protect, admin, superadmin };
