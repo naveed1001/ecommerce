@@ -8,9 +8,10 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
-const { webhook } = require('./controllers/webhookController'); // Added
+const { webhook } = require('./controllers/webhookController');
 
 dotenv.config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 app.use(cors());
@@ -19,7 +20,7 @@ app.use(cors());
 app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), webhook);
 
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // Serve uploaded images
+app.use('/uploads', express.static('uploads'));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -41,5 +42,5 @@ mongoose
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:', err.message);
-    process.exit(1); // Exit if DB fails
+    process.exit(1);
   });

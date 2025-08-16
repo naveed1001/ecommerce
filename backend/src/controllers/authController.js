@@ -11,7 +11,12 @@ const register = async (req, res, next) => {
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    user = new User({ name, email, password });
+    user = new User({
+      name,
+      email,
+      password,
+      profileImage: req.file ? req.file.path : '' // Save image path if uploaded
+    });
     await user.save();
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
@@ -23,6 +28,7 @@ const register = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        profileImage: user.profileImage, // Include profile image
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
@@ -52,6 +58,7 @@ const login = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        profileImage: user.profileImage, // Include profile image
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }

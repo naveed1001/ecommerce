@@ -5,8 +5,9 @@ import {
   getProducts, createProduct, updateProduct, deleteProduct,
   getCategories, createCategory, updateCategory, deleteCategory,
   getOrders, updateOrder, deleteOrder,
-  getAllUsers, deleteUser // Assuming deleteUser is added in userController
+  getAllUsers, deleteUser
 } from '../services/api';
+import ConfirmationModal from './ConfirmationModel';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -17,10 +18,13 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null); // Added for success feedback
   const [productForm, setProductForm] = useState({ name: '', description: '', price: '', category: '', stock: 0, image: null });
   const [categoryForm, setCategoryForm] = useState({ name: '' });
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ itemType: '', itemId: '', itemName: '', onConfirm: () => {} });
 
   // Check admin role
   useEffect(() => {
@@ -40,12 +44,40 @@ const AdminDashboard = () => {
           getOrders(),
           getAllUsers()
         ]);
-        setProducts(productRes.data);
-        setCategories(categoryRes.data);
-        setOrders(orderRes.data);
-        setUsers(userRes.data);
+
+        if (Array.isArray(productRes.data.products)) {
+          setProducts(productRes.data.products);
+        } else {
+          setProducts([]);
+          setError('Invalid product data received');
+        }
+
+        if (Array.isArray(categoryRes.data)) {
+          setCategories(categoryRes.data);
+        } else {
+          setCategories([]);
+          setError('Invalid category data received');
+        }
+
+        if (Array.isArray(orderRes.data)) {
+          setOrders(orderRes.data);
+        } else {
+          setOrders([]);
+          setError('Invalid order data received');
+        }
+
+        if (Array.isArray(userRes.data)) {
+          setUsers(userRes.data);
+        } else {
+          setUsers([]);
+          setError('Invalid user data received');
+        }
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to load data');
+        setProducts([]);
+        setCategories([]);
+        setOrders([]);
+        setUsers([]);
       } finally {
         setLoading(false);
       }
@@ -58,22 +90,40 @@ const AdminDashboard = () => {
     e.preventDefault();
     const formData = new FormData();
     Object.keys(productForm).forEach(key => {
-      if (key === 'image' && productForm[key]) formData.append(key, productForm[key]);
-      else if (productForm[key]) formData.append(key, productForm[key]);
+      if (key === 'image' && productForm[key]) {
+        formData.append(key, productForm[key]);
+      } else if (productForm[key] !== '' && productForm[key] !== null) {
+        formData.append(key, productForm[key]);
+      }
     });
+
+    // Debug FormData
+    for (let [key, value] of formData.entries()) {
+      console.log(`FormData ${key}:`, value);
+    }
 
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct._id, formData);
-        setProducts(products.map(p => p._id === editingProduct._id ? { ...p, ...productForm } : p));
+        console.log('Updating product with ID:', editingProduct._id);
+        const res = await updateProduct(editingProduct._id, formData);
+        console.log('Update API response:', res.data);
+        setProducts(products.map(p => p._id === editingProduct._id ? res.data : p));
         setEditingProduct(null);
+        setSuccess('Product updated successfully'); // Added success feedback
       } else {
+        console.log('Creating new product');
         const res = await createProduct(formData);
+        console.log('Create API response:', res.data);
         setProducts([...products, res.data]);
+        setSuccess('Product created successfully'); // Added success feedback
       }
       setProductForm({ name: '', description: '', price: '', category: '', stock: 0, image: null });
+      setError(null); // Clear any previous errors
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save product');
+      console.error('Error during product submission:', err);
+      setError(err.response?.data?.message || 'Failed to save product. Check console for details.');
     }
   };
 
@@ -82,14 +132,18 @@ const AdminDashboard = () => {
     e.preventDefault();
     try {
       if (editingCategory) {
-        await updateCategory(editingCategory._id, categoryForm);
-        setCategories(categories.map(c => c._id === editingCategory._id ? { ...c, ...categoryForm } : c));
+        const res = await updateCategory(editingCategory._id, categoryForm);
+        setCategories(categories.map(c => c._id === editingCategory._id ? res.data : c));
         setEditingCategory(null);
+        setSuccess('Category updated successfully'); // Added success feedback
       } else {
         const res = await createCategory(categoryForm);
         setCategories([...categories, res.data]);
+        setSuccess('Category created successfully'); // Added success feedback
       }
       setCategoryForm({ name: '' });
+      setError(null);
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save category');
     }
@@ -97,87 +151,158 @@ const AdminDashboard = () => {
 
   // Handle product deletion
   const handleDeleteProduct = async (id) => {
-    try {
-      await deleteProduct(id);
-      setProducts(products.filter(p => p._id !== id));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete product');
-    }
+    await deleteProduct(id);
+    setProducts(products.filter(p => p._id !== id));
+    setSuccess('Product deleted successfully'); // Added success feedback
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   // Handle category deletion
   const handleDeleteCategory = async (id) => {
-    try {
-      await deleteCategory(id);
-      setCategories(categories.filter(c => c._id !== id));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete category');
-    }
+    await deleteCategory(id);
+    setCategories(categories.filter(c => c._id !== id));
+    setSuccess('Category deleted successfully'); // Added success feedback
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  // Handle order deletion
+  const handleDeleteOrder = async (id) => {
+    await deleteOrder(id);
+    setOrders(orders.filter(o => o._id !== id));
+    setSuccess('Order deleted successfully'); // Added success feedback
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  // Handle user deletion
+  const handleDeleteUser = async (id) => {
+    await deleteUser(id);
+    setUsers(users.filter(u => u._id !== id));
+    setSuccess('User deleted successfully'); // Added success feedback
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  // Open confirmation modal
+  const openModal = (itemType, itemId, itemName, onConfirm) => {
+    setModalConfig({ itemType, itemId, itemName, onConfirm });
+    setModalOpen(true);
+  };
+
+  // Close modal
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalConfig({ itemType: '', itemId: '', itemName: '', onConfirm: () => {} });
   };
 
   // Handle order status update
   const handleUpdateOrder = async (id, isDelivered) => {
     try {
-      await updateOrder(id, { isDelivered });
-      setOrders(orders.map(o => o._id === id ? { ...o, isDelivered, deliveredAt: isDelivered ? new Date() : o.deliveredAt } : o));
+      const res = await updateOrder(id, { isDelivered });
+      setOrders(orders.map(o => o._id === id ? { ...o, isDelivered: res.data.isDelivered } : o));
+      setSuccess(`Order marked as ${isDelivered ? 'delivered' : 'undelivered'}`); // Added success feedback
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update order');
+      setError(err.response?.data?.message || 'Failed to update order status');
     }
   };
 
-  // Handle user deletion
-  const handleDeleteUser = async (id) => {
-    try {
-      await deleteUser(id); // Assuming deleteUser exists
-      setUsers(users.filter(u => u._id !== id));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete user');
-    }
+  // Handle edit product click
+  const handleEditProduct = (product) => {
+    console.log('Editing product:', product); // Debug
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name || '',
+      description: product.description || '',
+      price: product.price || '',
+      category: product.category?._id || product.category || '',
+      stock: product.stock || 0,
+      image: null // File input can't be pre-filled
+    });
   };
 
-  if (loading) return <div className="container mx-auto p-4">Loading...</div>;
-  if (error) return <div className="container mx-auto p-4 text-red-500">{error}</div>;
+  // Handle cancel edit
+  const handleCancelEditProduct = () => {
+    setEditingProduct(null);
+    setProductForm({ name: '', description: '', price: '', category: '', stock: 0, image: null });
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-6 py-12 bg-gradient-to-br from-gray-50 via-white to-gray-100 min-h-screen font-inter">
+        <div className="text-center py-10 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100">
+          <p className="text-gray-600 text-base font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+    <div className="container mx-auto px-6 py-12 bg-gradient-to-br from-gray-50 via-white to-gray-100 min-h-screen font-inter">
+      <h1 className="text-3xl font-bold text-center tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500 mb-8">
+        Admin Dashboard
+      </h1>
+
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-xl shadow-md">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-xl shadow-md">
+          {error}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        onConfirm={modalConfig.onConfirm}
+        itemName={modalConfig.itemName}
+        itemType={modalConfig.itemType}
+        itemId={modalConfig.itemId}
+      />
 
       {/* Product Management */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
-        <form onSubmit={handleProductSubmit} className="max-w-md">
-          <div className="mb-4">
-            <label className="block text-sm font-medium">Name</label>
+      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
+        <form onSubmit={handleProductSubmit} className="max-w-md space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
             <input
               type="text"
               value={productForm.name}
               onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-              className="border p-2 w-full rounded"
+              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
+              required
             />
           </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium">Description</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Description</label>
             <textarea
               value={productForm.description}
               onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-              className="border p-2 w-full rounded"
+              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
+              required
             />
           </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium">Price</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Price</label>
             <input
               type="number"
               value={productForm.price}
               onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-              className="border p-2 w-full rounded"
+              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
+              required
             />
           </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium">Category</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Category</label>
             <select
               value={productForm.category}
               onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-              className="border p-2 w-full rounded"
+              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
+              required
             >
               <option value="">Select Category</option>
               {categories.map(c => (
@@ -185,140 +310,164 @@ const AdminDashboard = () => {
               ))}
             </select>
           </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium">Stock</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Stock</label>
             <input
               type="number"
               value={productForm.stock}
               onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
-              className="border p-2 w-full rounded"
+              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
+              required
             />
           </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium">Image</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Image</label>
+            {editingProduct && productForm.image === null && editingProduct.image && (
+              <p className="text-sm text-gray-600 mb-1">Current Image: <a href={editingProduct.image} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline">View</a></p>
+            )}
             <input
               type="file"
               onChange={(e) => setProductForm({ ...productForm, image: e.target.files[0] })}
-              className="border p-2 w-full rounded"
+              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm"
+              accept="image/*"
             />
           </div>
-          <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
-            {editingProduct ? 'Update Product' : 'Add Product'}
-          </button>
-          {editingProduct && (
+          <div className="flex space-x-3">
             <button
-              type="button"
-              onClick={() => setEditingProduct(null)}
-              className="ml-2 bg-gray-500 text-white p-2 rounded hover:bg-gray-600"
+              type="submit"
+              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
             >
-              Cancel
+              {editingProduct ? 'Update Product' : 'Add Product'}
             </button>
-          )}
+            {editingProduct && (
+              <button
+                type="button"
+                onClick={handleCancelEditProduct}
+                className="flex-1 bg-gray-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
 
-        <h3 className="text-lg font-semibold mt-4 mb-2">Products</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-4">Products</h3>
         <div className="grid gap-4">
-          {products.map(p => (
-            <div key={p._id} className="border p-4 rounded shadow flex justify-between">
-              <div>
-                <p><strong>{p.name}</strong></p>
-                <p>${p.price}</p>
-                <p>Stock: {p.stock}</p>
+          {products.length === 0 ? (
+            <p className="text-gray-600 text-base font-medium">No products found.</p>
+          ) : (
+            products.map(p => (
+              <div key={p._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-base font-semibold text-gray-900">{p.name}</p>
+                  <p className="text-sm text-gray-600">${p.price.toFixed(2)}</p>
+                  <p className="text-sm text-gray-600">Stock: {p.stock}</p>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => handleEditProduct(p)}
+                    className="bg-yellow-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => openModal('product', p._id, p.name, handleDeleteProduct)}
+                    className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div>
-                <button
-                  onClick={() => setEditingProduct(p)}
-                  className="bg-yellow-500 text-white p-2 rounded mr-2"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteProduct(p._id)}
-                  className="bg-red-500 text-white p-2 rounded"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
       {/* Category Management */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
-        <form onSubmit={handleCategorySubmit} className="max-w-md">
-          <div className="mb-4">
-            <label className="block text-sm font-medium">Name</label>
+      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
+        <form onSubmit={handleCategorySubmit} className="max-w-md space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
             <input
               type="text"
               value={categoryForm.name}
               onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-              className="border p-2 w-full rounded"
+              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
+              required
             />
           </div>
-          <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
-            {editingCategory ? 'Update Category' : 'Add Category'}
-          </button>
-          {editingCategory && (
+          <div className="flex space-x-3">
             <button
-              type="button"
-              onClick={() => setEditingCategory(null)}
-              className="ml-2 bg-gray-500 text-white p-2 rounded hover:bg-gray-600"
+              type="submit"
+              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
             >
-              Cancel
+              {editingCategory ? 'Update Category' : 'Add Category'}
             </button>
-          )}
+            {editingCategory && (
+              <button
+                type="button"
+                onClick={() => setEditingCategory(null)}
+                className="flex-1 bg-gray-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
 
-        <h3 className="text-lg font-semibold mt-4 mb-2">Categories</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-4">Categories</h3>
         <div className="grid gap-4">
-          {categories.map(c => (
-            <div key={c._id} className="border p-4 rounded shadow flex justify-between">
-              <p>{c.name}</p>
-              <div>
-                <button
-                  onClick={() => setEditingCategory(c)}
-                  className="bg-yellow-500 text-white p-2 rounded mr-2"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteCategory(c._id)}
-                  className="bg-red-500 text-white p-2 rounded"
-                >
-                  Delete
-                </button>
+          {categories.length === 0 ? (
+            <p className="text-gray-600 text-base font-medium">No categories found.</p>
+          ) : (
+            categories.map(c => (
+              <div key={c._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center">
+                <p className="text-base font-semibold text-gray-900">{c.name}</p>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setEditingCategory(c)}
+                    className="bg-yellow-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => openModal('category', c._id, c.name, handleDeleteCategory)}
+                    className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
       {/* Order Management */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">Orders</h2>
+      <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Orders</h2>
         {orders.length === 0 ? (
-          <p>No orders found.</p>
+          <p className="text-gray-600 text-base font-medium">No orders found.</p>
         ) : (
           <div className="grid gap-4">
             {orders.map(o => (
-              <div key={o._id} className="border p-4 rounded shadow flex justify-between">
+              <div key={o._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center">
                 <div>
-                  <p><strong>Order ID:</strong> {o._id}</p>
-                  <p><strong>Total:</strong> ${o.totalPrice.toFixed(2)}</p>
-                  <p><strong>Status:</strong> {o.isPaid ? 'Paid' : 'Pending'} {o.isDelivered ? '(Delivered)' : ''}</p>
+                  <p className="text-base font-semibold text-gray-900">Order ID: {o._id}</p>
+                  <p className="text-sm text-gray-600">Total: ${o.totalPrice.toFixed(2)}</p>
+                  <p className="text-sm text-gray-600">Status: {o.isPaid ? 'Paid' : 'Pending'} {o.isDelivered ? '(Delivered)' : ''}</p>
                 </div>
-                <div>
+                <div className="flex space-x-3">
                   <button
                     onClick={() => handleUpdateOrder(o._id, !o.isDelivered)}
-                    className="bg-yellow-500 text-white p-2 rounded mr-2"
+                    className={`text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300 ${o.isDelivered ? 'bg-green-500' : 'bg-yellow-500'}`}
                   >
                     {o.isDelivered ? 'Mark Undelivered' : 'Mark Delivered'}
                   </button>
                   <button
-                    onClick={() => handleDeleteOrder(o._id)}
-                    className="bg-red-500 text-white p-2 rounded"
+                    onClick={() => openModal('order', o._id, o._id, handleDeleteOrder)}
+                    className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
                   >
                     Delete
                   </button>
@@ -330,22 +479,25 @@ const AdminDashboard = () => {
       </div>
 
       {/* User Management */}
-      <div>
-        <h2 className="text-xl font-semibold mb-2">Users</h2>
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Users</h2>
         {users.length === 0 ? (
-          <p>No users found.</p>
+          <p className="text-gray-600 text-base font-medium">No users found.</p>
         ) : (
           <div className="grid gap-4">
             {users.map(u => (
-              <div key={u._id} className="border p-4 rounded shadow flex justify-between">
+              <div
+                key={u._id}
+                className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center"
+              >
                 <div>
-                  <p><strong>{u.name}</strong></p>
-                  <p>{u.email}</p>
-                  <p>Role: {u.role}</p>
+                  <p className="text-base font-semibold text-gray-900">{u.name}</p>
+                  <p className="text-sm text-gray-600">{u.email}</p>
+                  <p className="text-sm text-gray-600">Role: {u.role}</p>
                 </div>
                 <button
-                  onClick={() => handleDeleteUser(u._id)}
-                  className="bg-red-500 text-white p-2 rounded"
+                  onClick={() => openModal('user', u._id, u.name, handleDeleteUser)}
+                  className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
                 >
                   Delete
                 </button>
@@ -354,6 +506,15 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+
+      <style>
+        {`
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    .font-inter {
+      font-family: 'Inter', sans-serif;
+    }
+  `}
+      </style>
     </div>
   );
 };

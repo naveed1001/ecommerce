@@ -1,4 +1,7 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { loadUserProfile } from './redux/slices/authSlice';
 import Header from './components/Header';
 import Home from './components/Home';
 import ProductDetail from './components/ProductDetail';
@@ -9,14 +12,12 @@ import Checkout from './components/Checkout';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Wishlist from './components/Wishlist';
-import { useDispatch, useSelector } from 'react-redux';
-import { useEffect } from 'react';
-import { loadUserProfile } from './redux/slices/authSlice';
-
+import OrderDetails from './components/OrderDetails';
 
 function App() {
-
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { token } = useSelector((state) => state.auth);
 
   useEffect(() => {
@@ -24,6 +25,20 @@ function App() {
       dispatch(loadUserProfile());
     }
   }, [token, dispatch]);
+
+  // Handle /order/success redirect
+  useEffect(() => {
+    if (location.pathname.startsWith('/order/success')) {
+      const sessionId = new URLSearchParams(location.search).get('session_id');
+      if (!sessionId) {
+        console.error('No session ID provided in URL');
+        navigate('/checkout?error=invalid_session');
+      } else {
+        console.log('Received success redirect with session_id:', sessionId);
+        // Server will redirect to /order/:id, so we rely on that
+      }
+    }
+  }, [location, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -38,6 +53,8 @@ function App() {
         <Route path="/dashboard" element={<UserDashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/order/:id" element={<OrderDetails />} />
+        <Route path="/order/success" element={<OrderDetails />} />
       </Routes>
     </div>
   );

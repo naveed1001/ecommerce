@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { getProducts } from '../services/api';
 import { addToCart } from '../redux/slices/cartSlice';
 import { getImageUrl } from '../utils/image';
+import Hero from './Hero';
+import Footer from './Footer';
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -16,8 +18,6 @@ const Home = () => {
       try {
         setLoading(true);
         const res = await getProducts();
-
-        // FIX: Access the array inside res.data.products
         if (Array.isArray(res.data.products)) {
           setProducts(res.data.products);
         } else {
@@ -41,49 +41,63 @@ const Home = () => {
     dispatch(addToCart(product));
   };
 
-  if (loading) return <div className="container mx-auto p-4">Loading...</div>;
-  if (error) return <div className="container mx-auto p-4 text-red-500">{error}</div>;
-
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Our Products</h1>
-      {products.length === 0 ? (
-        <p>No products available. Check back later!</p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <div key={product._id} className="border p-4 rounded shadow hover:shadow-lg transition">
-              <img
-                src={getImageUrl(product.image) || 'https://via.placeholder.com/150'}
-                alt={product.name}
-                className="w-full h-48 object-cover mb-2 rounded"
-              />
-              <h2 className="text-lg font-medium">{product.name}</h2>
-              <p className="text-gray-600 mb-2">${product.price.toFixed(2)}</p>
-              <p className="text-sm text-gray-500 mb-2">
-                {product.stock > 0 ? `In Stock: ${product.stock}` : 'Out of Stock'}
-              </p>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleAddToCart(product)}
-                  disabled={product.stock === 0}
-                  className={`px-4 py-2 rounded text-white ${
-                    product.stock === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
-                  }`}
-                >
-                  Add to Cart
-                </button>
-                <Link
-                  to={`/product/${product._id}`}
-                  className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-                >
-                  View Details
-                </Link>
+    <div className="bg-gray-50 min-h-screen">
+      {/* Hero Section */}
+      <Hero />
+
+      {/* Products Section */}
+      <section id="products" className="container mx-auto px-4 py-12">
+        <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">Our Products</h2>
+        {loading && <div className="text-center text-gray-600">Loading...</div>}
+        {error && <div className="text-center text-red-500">{error}</div>}
+        {products.length === 0 && !loading && !error ? (
+          <p className="text-center text-gray-600">No products available. Check back later!</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            {products.map((product) => (
+              <div
+                key={product._id}
+                className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden"
+              >
+                <img
+                  src={getImageUrl(product.image) || 'https://via.placeholder.com/150'}
+                  alt={product.name}
+                  className="w-full h-60 object-cover transition-transform duration-300 hover:scale-105"
+                />
+                <div className="p-4">
+                  <h3 className="text-lg font-semibold text-gray-800 truncate">{product.name}</h3>
+                  <p className="text-gray-600 font-medium mt-1">${product.price.toFixed(2)}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {product.stock > 0 ? `In Stock: ${product.stock}` : 'Out of Stock'}
+                  </p>
+                  <div className="mt-4 flex space-x-2">
+                    <button
+                      onClick={() => handleAddToCart(product)}
+                      disabled={product.stock === 0}
+                      className={`flex-1 py-2 rounded-full text-white font-medium transition-colors duration-300 ${
+                        product.stock === 0
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-green-600 hover:bg-green-700'
+                      }`}
+                    >
+                      Add to Cart
+                    </button>
+                    <Link
+                      to={`/product/${product._id}`}
+                      className="flex-1 py-2 rounded-full bg-indigo-600 text-white font-medium text-center hover:bg-indigo-700 transition-colors duration-300"
+                    >
+                      View Details
+                    </Link>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
+            {/* Footer Section */}
+      <Footer />
     </div>
   );
 };

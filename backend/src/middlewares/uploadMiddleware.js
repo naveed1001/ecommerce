@@ -1,4 +1,3 @@
-// middlewares/uploadMiddleware.js
 const multer = require('multer');
 const path = require('path');
 
@@ -15,15 +14,12 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter (optional: only allow images)
+// File filter (allow all image MIME types)
 const fileFilter = (req, file, cb) => {
-  const filetypes = /jpg|jpeg|png|gif/;
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = filetypes.test(file.mimetype);
-  if (extname && mimetype) {
+  if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Images only!'), false);
+    cb(new Error('Only image files are allowed!'), false);
   }
 };
 

@@ -29,7 +29,8 @@ const createProduct = async (req, res, next) => {
   if (error) return res.status(400).json({ message: error.details[0].message });
 
   try {
-    console.log('Uploaded file:', req.file); // Debug
+    console.log('Create product - Request body:', req.body); // Debug
+    console.log('Create product - Uploaded file:', req.file); // Debug
 
     const product = new Product({
       ...req.body,
@@ -39,16 +40,42 @@ const createProduct = async (req, res, next) => {
     await product.save();
     res.status(201).json(product);
   } catch (err) {
+    console.error('Create product error:', err); // Debug
     next(err);
   }
 };
 
 const updateProduct = async (req, res, next) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    console.log('Update product - Request body:', req.body); // Debug
+    console.log('Update product - Uploaded file:', req.file); // Debug
+
+    // Validate request body
+    const { error } = productSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
+    // Fetch existing product to preserve image if no new file is uploaded
+    const existingProduct = await Product.findById(req.params.id);
+    if (!existingProduct) return res.status(404).json({ message: 'Product not found' });
+
+    // Prepare update data
+    const updateData = {
+      ...req.body,
+      image: req.file ? `/uploads/${req.file.filename}` : existingProduct.image // Preserve existing image
+    };
+
+    // Update product
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).populate('category');
+
     if (!product) return res.status(404).json({ message: 'Product not found' });
+
     res.json(product);
   } catch (err) {
+    console.error('Update product error:', err); // Debug
     next(err);
   }
 };
@@ -80,6 +107,5 @@ const addReview = async (req, res, next) => {
     next(err);
   }
 };
-
 
 module.exports = { getProducts, getProductById, createProduct, updateProduct, deleteProduct, addReview };

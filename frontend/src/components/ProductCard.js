@@ -21,23 +21,37 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <div className="border p-4 rounded shadow">
+    <div className="bg-white/90 rounded-2xl shadow-xl border border-gray-100/50 p-5 font-inter">
       <img
         src={getImageUrl(product.image) || 'https://via.placeholder.com/300'}
         alt={product.name}
-        className="w-full h-48 object-cover"
+        className="w-full h-48 object-cover rounded-xl border border-gray-200/50 mb-3"
       />
-      <h2 className="text-xl">{product.name}</h2>
-      <p>${product.price}</p>
-      <Link to={`/product/${product._id}`} className="text-blue-500">
-        Details
-      </Link>
-      <button
-        onClick={handleAddToCart}
-        className="bg-green-500 text-white p-2 mt-2"
-      >
-        Add to Cart
-      </button>
+      <h2 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h2>
+      <p className="text-base font-medium text-gray-800">${product.price.toFixed(2)}</p>
+      <div className="flex justify-between items-center mt-3">
+        <Link
+          to={`/product/${product._id}`}
+          className="text-indigo-500 text-sm font-medium hover:text-indigo-600"
+        >
+          Details
+        </Link>
+        <button
+          onClick={handleAddToCart}
+          disabled={product.stock === 0}
+          className={`px-4 py-2 rounded-full text-white text-sm font-medium shadow-md hover:shadow-lg ${product.stock === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-green-700 hover:bg-gradient-to-r hover:from-green-600 hover:to-green-800'}`}
+        >
+          Add to Cart
+        </button>
+      </div>
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+          .font-inter {
+            font-family: 'Inter', sans-serif;
+          }
+        `}
+      </style>
     </div>
   );
 };

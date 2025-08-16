@@ -1,25 +1,40 @@
+require('dotenv').config();
 const Order = require('../models/orderModel');
-const Product = require('../models/productModel'); // Added for price fetching
+const Product = require('../models/productModel');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { orderSchema } = require('../utils/validation');
+const mongoose = require('mongoose');
 
 const createOrder = async (req, res, next) => {
-  const { error } = orderSchema.validate(req.body);
-  if (error) return res.status(400).json({ message: error.details[0].message });
-
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
+    const { error } = orderSchema.validate(req.body);
+    if (error) throw new Error(error.details[0].message);
+
     const { products, shippingAddress, paymentMethod } = req.body;
 
-    // Fetch real products from DB to calculate total (prevent tampering)
-    const productIds = products.map(item => item.product._id);
-    const dbProducts = await Product.find({ _id: { $in: productIds } });
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      throw new Error('No products provided');
+    }
+
+    // Fetch real product data from DB
+    const productIds = products.map(item => item.productId);
+    const dbProducts = await Product.find({ _id: { $in: productIds } }).session(session);
 
     let totalPrice = 0;
     const orderProducts = products.map(item => {
-      const dbProduct = dbProducts.find(p => p._id.toString() === item.product._id);
-      if (!dbProduct) throw new Error(`Product ${item.product._id} not found`);
+      const dbProduct = dbProducts.find(p => p._id.toString() === item.productId.toString());
+      if (!dbProduct) throw new Error(`Product ${item.productId} not found`);
+      if (dbProduct.stock < item.quantity) {
+        throw new Error(`Insufficient stock for product ${dbProduct.name}`);
+      }
       totalPrice += dbProduct.price * item.quantity;
-      return { product: dbProduct._id, quantity: item.quantity };
+      return {
+        product: dbProduct._id,
+        quantity: item.quantity,
+        price: dbProduct.price,
+      };
     });
 
     const order = new Order({
@@ -27,22 +42,47 @@ const createOrder = async (req, res, next) => {
       products: orderProducts,
       shippingAddress,
       paymentMethod,
-      totalPrice
+      totalPrice,
     });
-    await order.save();
+    await order.save({ session });
 
     if (paymentMethod === 'stripe') {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(totalPrice * 100), // cents, round to avoid floats
-        currency: 'usd',
-        metadata: { orderId: order._id.toString() } // For webhook identification
+      const sessionData = await stripe.checkout.sessions.create(
+        {
+          payment_method_types: ['card'],
+          line_items: orderProducts.map(item => ({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: dbProducts.find(p => p._id.toString() === item.product.toString()).name,
+              },
+              unit_amount: Math.round(item.price * 100),
+            },
+            quantity: item.quantity,
+          })),
+          mode: 'payment',
+          success_url: `${req.protocol}://${req.headers.host}/api/orders/success/{CHECKOUT_SESSION_ID}`,
+          cancel_url: `${req.headers.origin}/checkout`,
+          metadata: { orderId: order._id.toString() },
+        },
+        { idempotencyKey: order._id.toString() }
+      );
+
+      await session.commitTransaction();
+      return res.json({
+        orderId: order._id,
+        totalPrice,
+        checkoutUrl: sessionData.url,
       });
-      res.json({ clientSecret: paymentIntent.client_secret, order });
-    } else {
-      res.json(order);
     }
+
+    await session.commitTransaction();
+    res.json({ orderId: order._id, totalPrice });
   } catch (err) {
+    await session.abortTransaction();
     next(err);
+  } finally {
+    session.endSession();
   }
 };
 
@@ -51,15 +91,16 @@ const updateOrderToPaid = async (req, res, next) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // Verify it's the user's order
-    if (order.user.toString() !== req.user.id) return res.status(403).json({ message: 'Access denied' });
+    if (order.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
 
     order.isPaid = true;
     order.paidAt = Date.now();
-    order.paymentResult = req.body.paymentResult; // From Stripe confirmation
+    order.paymentResult = req.body.paymentResult;
     await order.save();
 
-    res.json(order);
+    res.json({ orderId: order._id });
   } catch (err) {
     next(err);
   }
@@ -67,7 +108,11 @@ const updateOrderToPaid = async (req, res, next) => {
 
 const getOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find().populate('user products.product');
+    let query = {};
+    if (req.user.role !== 'admin') {
+      query.user = req.user.id;
+    }
+    const orders = await Order.find(query).populate('user products.product');
     res.json(orders);
   } catch (err) {
     next(err);
@@ -76,6 +121,9 @@ const getOrders = async (req, res, next) => {
 
 const getOrderById = async (req, res, next) => {
   try {
+    if (!req.params.id || req.params.id === 'undefined') {
+      return res.status(400).json({ message: 'Invalid order ID' });
+    }
     const order = await Order.findById(req.params.id).populate('user products.product');
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (req.user.role !== 'admin' && order.user._id.toString() !== req.user.id) {
@@ -107,4 +155,11 @@ const deleteOrder = async (req, res, next) => {
   }
 };
 
-module.exports = { createOrder, updateOrderToPaid, getOrders, getOrderById, updateOrder, deleteOrder };
+module.exports = {
+  createOrder,
+  updateOrderToPaid,
+  getOrders,
+  getOrderById,
+  updateOrder,
+  deleteOrder,
+};

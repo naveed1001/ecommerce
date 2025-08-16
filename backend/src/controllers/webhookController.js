@@ -1,35 +1,35 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Order = require('../models/orderModel');
 
-// Stripe requires raw body for webhook signature
 const webhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(
-      req.body, // Raw body
+      req.body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
+    console.error(`Webhook Error: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object;
-    const orderId = paymentIntent.metadata.orderId;
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const orderId = session.metadata.orderId;
 
     try {
       const order = await Order.findById(orderId);
-      if (order) {
+      if (order && !order.isPaid) {
         order.isPaid = true;
         order.paidAt = Date.now();
         order.paymentResult = {
-          id: paymentIntent.id,
-          status: paymentIntent.status,
-          update_time: event.created,
-          email_address: paymentIntent.receipt_email
+          id: session.payment_intent,
+          status: session.payment_status,
+          update_time: session.created,
+          email_address: session.customer_details?.email || '',
         };
         await order.save();
         console.log(`Order ${orderId} marked as paid via webhook`);
