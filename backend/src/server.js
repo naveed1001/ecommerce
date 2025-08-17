@@ -14,7 +14,10 @@ dotenv.config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true
+}));
 
 // Raw body for Stripe webhook (must be before express.json())
 app.post('/api/webhook/stripe', express.raw({ type: 'application/json' }), webhook);
