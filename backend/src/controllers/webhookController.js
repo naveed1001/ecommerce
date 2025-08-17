@@ -12,7 +12,6 @@ const webhook = async (req, res) => {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error(`Webhook Error: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -32,7 +31,6 @@ const webhook = async (req, res) => {
           email_address: session.customer_details?.email || '',
         };
         await order.save();
-        console.log(`Order ${orderId} marked as paid via webhook`);
       }
     } catch (err) {
       console.error(`Error updating order ${orderId}: ${err}`);

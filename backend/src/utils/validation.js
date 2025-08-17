@@ -18,7 +18,9 @@ const productSchema = Joi.object({
   price: Joi.number().required(),
   category: Joi.string().allow(null, ''),
   stock: Joi.number(),
+  image: Joi.any().optional().allow(null, ''), // ✅ allow file or null
 });
+
 
 const categorySchema = Joi.object({
   name: Joi.string().trim().min(2).max(50).required(),

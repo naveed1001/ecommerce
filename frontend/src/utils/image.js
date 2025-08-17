@@ -1,42 +1,53 @@
 /**
- * Get the API origin from environment or fallback to browser location
+ * Get the API origin from environment or fallback to backend server
  */
 export const getApiOrigin = () => {
   const envApiUrl = process.env.REACT_APP_API_URL;
 
-  // Prefer the API URL from environment variables
+  // Prefer environment variable if valid
   if (envApiUrl) {
     try {
       return new URL(envApiUrl).origin;
     } catch {
-      // If env var is not a valid URL, fall back to window location
+      // ignore invalid URL, fallback below
     }
   }
 
-  // Fallback: use the browser's origin if available
-  if (typeof window !== 'undefined' && window.location?.origin) {
+  // Development: use relative URLs with proxy (CRA / Vite dev server)
+  if (process.env.NODE_ENV === "development") {
+    return "";
+  }
+
+  // Production: use current window origin
+  if (typeof window !== "undefined" && window.location?.origin) {
+    if (
+      window.location.origin.includes("localhost:3000") ||
+      window.location.origin.includes("127.0.0.1:3000")
+    ) {
+      return ""; // dev proxy
+    }
     return window.location.origin;
   }
 
-  return '';
+  // Final fallback (useful in SSR or misconfigured envs)
+  return "http://localhost:5000";
 };
 
 /**
  * Build a full image URL from a given path
- * - If absolute (http://, https://, //, or data:), return as is
- * - If starts with /uploads, prepend the API origin
- * - Otherwise, return unchanged
  */
 export const getImageUrl = (imagePath) => {
-  if (!imagePath) return '';
+  if (!imagePath) return "";
 
+  // Already a valid absolute or data URI
   const isAbsolute =
-    /^(https?:)?\/\//i.test(imagePath) || imagePath.startsWith('data:');
-
+    /^(https?:)?\/\//i.test(imagePath) || imagePath.startsWith("data:");
   if (isAbsolute) return imagePath;
 
-  if (imagePath.startsWith('/uploads')) {
-    return `${getApiOrigin()}${imagePath}`;
+  // Uploaded files -> prepend API origin if available
+  if (imagePath.startsWith("/uploads")) {
+    const apiOrigin = getApiOrigin();
+    return apiOrigin ? `${apiOrigin}${imagePath}` : imagePath;
   }
 
   return imagePath;

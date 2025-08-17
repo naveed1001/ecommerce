@@ -8,10 +8,7 @@ const API_BASE_URL =
     : 'http://localhost:5000/api');
 
 const API = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: API_BASE_URL
 });
 
 // Attach token to every request if available

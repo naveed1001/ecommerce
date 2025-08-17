@@ -1,4 +1,3 @@
-// Updated productController.js
 const Product = require('../models/productModel');
 const { productSchema } = require('../utils/validation');
 
@@ -55,8 +54,6 @@ const createProduct = async (req, res, next) => {
 
 const updateProduct = async (req, res, next) => {
   try {
-    console.log('Update product - Request body:', req.body); // Debug
-    console.log('Update product - Uploaded file:', req.file); // Debug
 
     // Validate request body
     const { error } = productSchema.validate(req.body);
