@@ -1,3 +1,4 @@
+// Updated orderController.js
 require('dotenv').config();
 const Order = require('../models/orderModel');
 const Product = require('../models/productModel');
@@ -109,9 +110,17 @@ const updateOrderToPaid = async (req, res, next) => {
 const getOrders = async (req, res, next) => {
   try {
     let query = {};
-    if (req.user.role !== 'admin') {
+    if (req.user.role === 'user') {
       query.user = req.user.id;
-    }
+    } else if (req.user.role === 'admin') {
+      const adminProducts = await Product.find({ createdBy: req.user.id }).select('_id');
+      const productIds = adminProducts.map(p => p._id);
+      if (productIds.length > 0) {
+        query['products.product'] = { $in: productIds };
+      } else {
+        return res.json([]);
+      }
+    } // superadmin: no filter
     const orders = await Order.find(query).populate('user products.product');
     res.json(orders);
   } catch (err) {
@@ -137,9 +146,19 @@ const getOrderById = async (req, res, next) => {
 
 const updateOrder = async (req, res, next) => {
   try {
-    const order = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
-    res.json(order);
+    if (req.user.role === 'admin') {
+      const adminProducts = await Product.find({ createdBy: req.user.id }).select('_id');
+      const productIds = adminProducts.map(p => p._id);
+      const orderProductIds = order.products.map(op => op.product);
+      const hasOwnProduct = orderProductIds.some(opid => productIds.some(pid => pid.toString() === opid.toString()));
+      if (!hasOwnProduct) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    }
+    const updatedOrder = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updatedOrder);
   } catch (err) {
     next(err);
   }
@@ -147,8 +166,18 @@ const updateOrder = async (req, res, next) => {
 
 const deleteOrder = async (req, res, next) => {
   try {
-    const order = await Order.findByIdAndDelete(req.params.id);
+    const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (req.user.role === 'admin') {
+      const adminProducts = await Product.find({ createdBy: req.user.id }).select('_id');
+      const productIds = adminProducts.map(p => p._id);
+      const orderProductIds = order.products.map(op => op.product);
+      const hasOwnProduct = orderProductIds.some(opid => productIds.some(pid => pid.toString() === opid.toString()));
+      if (!hasOwnProduct) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    }
+    await Order.findByIdAndDelete(req.params.id);
     res.json({ message: 'Order deleted' });
   } catch (err) {
     next(err);

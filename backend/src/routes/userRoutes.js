@@ -1,3 +1,4 @@
+// Updated userRoutes.js
 const express = require('express');
 const router = express.Router();
 const { getUserProfile, updateUserProfile, addToWishlist, removeFromWishlist, getAllUsers, deleteUser, updateUserRole } = require('../controllers/userController');
@@ -8,8 +9,8 @@ router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, upload.single('profileImage'), updateUserProfile);
 router.post('/wishlist', protect, addToWishlist);
 router.delete('/wishlist/:productId', protect, removeFromWishlist);
-router.get('/', protect, admin, getAllUsers);
-router.delete('/:id', protect, admin, deleteUser);
+router.get('/', protect, superadmin, getAllUsers);
+router.delete('/:id', protect, superadmin, deleteUser);
 router.put('/:id/role', protect, superadmin, updateUserRole);
 
 module.exports = router;

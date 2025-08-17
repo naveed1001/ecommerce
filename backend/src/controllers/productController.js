@@ -1,9 +1,16 @@
+// Updated productController.js
 const Product = require('../models/productModel');
 const { productSchema } = require('../utils/validation');
 
 const getProducts = async (req, res, next) => {
   try {
-    const products = await Product.find().populate('category');
+    let query = {};
+    if (req.query.manage && req.user && ['admin', 'superadmin'].includes(req.user.role)) {
+      if (req.user.role === 'admin') {
+        query.createdBy = req.user.id;
+      }
+    }
+    const products = await Product.find(query).populate('category');
     res.status(200).json({
       message: 'Products retrieved successfully',
       count: products.length,
@@ -34,7 +41,8 @@ const createProduct = async (req, res, next) => {
 
     const product = new Product({
       ...req.body,
-      image: req.file ? `/uploads/${req.file.filename}` : null
+      image: req.file ? `/uploads/${req.file.filename}` : null,
+      createdBy: req.user.id
     });
 
     await product.save();
@@ -54,9 +62,13 @@ const updateProduct = async (req, res, next) => {
     const { error } = productSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
-    // Fetch existing product to preserve image if no new file is uploaded
+    // Fetch existing product
     const existingProduct = await Product.findById(req.params.id);
     if (!existingProduct) return res.status(404).json({ message: 'Product not found' });
+
+    if (req.user.role === 'admin' && existingProduct.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
 
     // Prepare update data
     const updateData = {
@@ -82,8 +94,12 @@ const updateProduct = async (req, res, next) => {
 
 const deleteProduct = async (req, res, next) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
+    if (req.user.role === 'admin' && product.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    await Product.findByIdAndDelete(req.params.id);
     res.json({ message: 'Product deleted' });
   } catch (err) {
     next(err);

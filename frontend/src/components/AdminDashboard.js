@@ -1,3 +1,4 @@
+// Updated AdminDashboard.js
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -38,12 +39,23 @@ const AdminDashboard = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [productRes, categoryRes, orderRes, userRes] = await Promise.all([
-          getProducts(),
+        let promises = [
+          getProducts({ manage: true }),
           getCategories(),
           getOrders(),
-          getAllUsers()
-        ]);
+        ];
+        if (user.role === 'superadmin') {
+          promises.push(getAllUsers());
+        }
+        const responses = await Promise.all(promises);
+        let index = 0;
+        const productRes = responses[index++];
+        const categoryRes = responses[index++];
+        const orderRes = responses[index++];
+        let userRes = { data: [] };
+        if (user.role === 'superadmin') {
+          userRes = responses[index++];
+        }
 
         if (Array.isArray(productRes.data.products)) {
           setProducts(productRes.data.products);
@@ -66,12 +78,7 @@ const AdminDashboard = () => {
           setError('Invalid order data received');
         }
 
-        if (Array.isArray(userRes.data)) {
-          setUsers(userRes.data);
-        } else {
-          setUsers([]);
-          setError('Invalid user data received');
-        }
+        setUsers(userRes.data);
       } catch (err) {
         setError(err.message || 'Failed to load data');
         setProducts([]);
@@ -83,7 +90,7 @@ const AdminDashboard = () => {
       }
     };
     if (token) fetchData();
-  }, [token]);
+  }, [token, user.role]);
 
   // Handle product form submission
   const handleProductSubmit = async (e) => {
@@ -478,25 +485,25 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* User Management */}
-      <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Users</h2>
-        {users.length === 0 ? (
-          <p className="text-gray-600 text-base font-medium">No users found.</p>
-        ) : (
-          <div className="grid gap-4">
-            {users.map(u => (
-              <div
-                key={u.id}
-                className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center"
-              >
-                <div>
-                  <p className="text-base font-semibold text-gray-900">{u.name}</p>
-                  <p className="text-sm text-gray-600">{u.email}</p>
-                  <p className="text-sm text-gray-600">Role: {u.role}</p>
-                </div>
-                <div className="flex space-x-3">
-                  {user.role === 'superadmin' && (
+      {/* User Management - Only for superadmin */}
+      {user.role === 'superadmin' && (
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Users</h2>
+          {users.length === 0 ? (
+            <p className="text-gray-600 text-base font-medium">No users found.</p>
+          ) : (
+            <div className="grid gap-4">
+              {users.map(u => (
+                <div
+                  key={u.id}
+                  className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center"
+                >
+                  <div>
+                    <p className="text-base font-semibold text-gray-900">{u.name}</p>
+                    <p className="text-sm text-gray-600">{u.email}</p>
+                    <p className="text-sm text-gray-600">Role: {u.role}</p>
+                  </div>
+                  <div className="flex space-x-3">
                     <select
                       value={u.role}
                       onChange={(e) => handleUpdateUserRole(u.id, e.target.value)}
@@ -507,19 +514,19 @@ const AdminDashboard = () => {
                       <option value="admin">Admin</option>
                       <option value="superadmin">Superadmin</option>
                     </select>
-                  )}
-                  <button
-                    onClick={() => openModal('user', u.id, u.name, handleDeleteUser)}
-                    className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
-                  >
-                    Delete
-                  </button>
+                    <button
+                      onClick={() => openModal('user', u.id, u.name, handleDeleteUser)}
+                      className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <style>
         {`
