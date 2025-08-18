@@ -1,15 +1,32 @@
 const Product = require('../models/productModel');
 const { productSchema } = require('../utils/validation');
 
+
 const getProducts = async (req, res, next) => {
   try {
+    const products = await Product.find({}).populate('category');
+
+    res.status(200).json({
+      message: 'Products retrieved successfully',
+      count: products.length,
+      products
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getProductsByRole = async (req, res, next) => {
+  try {
     let query = {};
-    if (req.query.manage && req.user && ['admin', 'superadmin'].includes(req.user.role)) {
-      if (req.user.role === 'admin') {
-        query.createdBy = req.user.id;
-      }
+
+    // Only apply the filter if the request is for managing products and the user is an 'admin'
+    if (req.user && req.user.role === 'admin') {
+      query.createdBy = req.user.id;
     }
+
     const products = await Product.find(query).populate('category');
+
     res.status(200).json({
       message: 'Products retrieved successfully',
       count: products.length,
@@ -121,4 +138,4 @@ const addReview = async (req, res, next) => {
   }
 };
 
-module.exports = { getProducts, getProductById, createProduct, updateProduct, deleteProduct, addReview };
+module.exports = { getProducts, getProductsByRole, getProductById, createProduct, updateProduct, deleteProduct, addReview };

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  getProducts, createProduct, updateProduct, deleteProduct,
+  getProductsByRole, createProduct, updateProduct, deleteProduct,
   getCategories, createCategory, updateCategory, deleteCategory,
   getOrders, updateOrder, deleteOrder,
   getAllUsers, deleteUser, updateUserRole
@@ -25,7 +25,10 @@ const AdminDashboard = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalConfig, setModalConfig] = useState({ itemType: '', itemId: '', itemName: '', onConfirm: () => {} });
+  const [modalConfig, setModalConfig] = useState({ itemType: '', itemId: '', itemName: '', onConfirm: () => { } });
+  
+  // New state to track selected order IDs
+  const [selectedOrders, setSelectedOrders] = useState([]);
 
   // Check admin or superadmin role
   useEffect(() => {
@@ -39,21 +42,24 @@ const AdminDashboard = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const isAdmin = user.role === 'admin';
+        const isSuperAdmin = user.role === 'superadmin';
         let promises = [
-          getProducts({ manage: true }),
+          getProductsByRole(),
           getCategories(),
           getOrders(),
         ];
-        if (user.role === 'superadmin') {
+        if (isSuperAdmin) {
           promises.push(getAllUsers());
         }
+
         const responses = await Promise.all(promises);
         let index = 0;
         const productRes = responses[index++];
         const categoryRes = responses[index++];
         const orderRes = responses[index++];
         let userRes = { data: [] };
-        if (user.role === 'superadmin') {
+        if (isSuperAdmin) {
           userRes = responses[index++];
         }
 
@@ -90,7 +96,7 @@ const AdminDashboard = () => {
       }
     };
     if (token) fetchData();
-  }, [token, user.role]);
+  }, [token, user]);
 
   // Handle product form submission
   const handleProductSubmit = async (e) => {
@@ -198,7 +204,7 @@ const AdminDashboard = () => {
   // Close modal
   const closeModal = () => {
     setModalOpen(false);
-    setModalConfig({ itemType: '', itemId: '', itemName: '', onConfirm: () => {} });
+    setModalConfig({ itemType: '', itemId: '', itemName: '', onConfirm: () => { } });
   };
 
   // Handle order status update
@@ -231,6 +237,56 @@ const AdminDashboard = () => {
     setEditingProduct(null);
     setProductForm({ name: '', description: '', price: '', category: '', stock: 0, image: null });
   };
+
+  // New functions for multiple order selection
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders(prevSelected =>
+      prevSelected.includes(orderId)
+        ? prevSelected.filter(id => id !== orderId)
+        : [...prevSelected, orderId]
+    );
+  };
+
+  const handleSelectAllOrders = () => {
+    if (selectedOrders.length === orders.length) {
+      setSelectedOrders([]);
+    } else {
+      setSelectedOrders(orders.map(o => o._id));
+    }
+  };
+
+  const handleBulkDeleteOrders = async () => {
+    if (selectedOrders.length === 0) return;
+    try {
+      await Promise.all(selectedOrders.map(id => deleteOrder(id)));
+      setOrders(orders.filter(o => !selectedOrders.includes(o._id)));
+      setSelectedOrders([]);
+      setSuccess(`${selectedOrders.length} orders deleted successfully.`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to delete selected orders.');
+    }
+  };
+
+  const handleBulkMarkAsDelivered = async () => {
+    if (selectedOrders.length === 0) return;
+    try {
+      await Promise.all(selectedOrders.map(id => updateOrder(id, { isDelivered: true })));
+      const updatedOrders = orders.map(o =>
+        selectedOrders.includes(o._id) ? { ...o, isDelivered: true } : o
+      );
+      setOrders(updatedOrders);
+      setSelectedOrders([]);
+      setSuccess(`${selectedOrders.length} orders marked as delivered.`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to update selected orders.');
+    }
+  };
+
+  // Check user roles for conditional rendering
+  const isSuperAdmin = user?.role === 'superadmin';
+  const isAdminOrSuperAdmin = user?.role === 'admin' || isSuperAdmin;
 
   if (loading) {
     return (
@@ -392,36 +448,41 @@ const AdminDashboard = () => {
 
       {/* Category Management */}
       <div className="mb-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
-        <form onSubmit={handleCategorySubmit} className="max-w-md space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <input
-              type="text"
-              value={categoryForm.name}
-              onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-              className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
-              required
-            />
-          </div>
-          <div className="flex space-x-3">
-            <button
-              type="submit"
-              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
-            >
-              {editingCategory ? 'Update Category' : 'Add Category'}
-            </button>
-            {editingCategory && (
-              <button
-                type="button"
-                onClick={() => setEditingCategory(null)}
-                className="flex-1 bg-gray-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
+        {/* Only admins and superadmins can see this form */}
+        {isAdminOrSuperAdmin && (
+          <>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
+            <form onSubmit={handleCategorySubmit} className="max-w-md space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <input
+                  type="text"
+                  value={categoryForm.name}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                  className="mt-1 border border-gray-200 rounded-xl p-2 w-full bg-gray-50/50 backdrop-blur-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                />
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                >
+                  {editingCategory ? 'Update Category' : 'Add Category'}
+                </button>
+                {editingCategory && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingCategory(null)}
+                    className="flex-1 bg-gray-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </>
+        )}
 
         <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-4">Categories</h3>
         <div className="grid gap-4">
@@ -431,20 +492,23 @@ const AdminDashboard = () => {
             categories.map(c => (
               <div key={c._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center animate-slide-up">
                 <p className="text-base font-semibold text-gray-900">{c.name}</p>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setEditingCategory(c)}
-                    className="bg-yellow-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => openModal('category', c._id, c.name, handleDeleteCategory)}
-                    className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
-                  >
-                    Delete
-                  </button>
-                </div>
+                {/* Only superadmins can see these buttons */}
+                {isSuperAdmin && (
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setEditingCategory(c)}
+                      className="bg-yellow-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => openModal('category', c._id, c.name, handleDeleteCategory)}
+                      className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -457,36 +521,75 @@ const AdminDashboard = () => {
         {orders.length === 0 ? (
           <p className="text-gray-600 text-base font-medium">No orders found.</p>
         ) : (
-          <div className="grid gap-4">
-            {orders.map(o => (
-              <div key={o._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center animate-slide-up">
-                <div>
-                  <p className="text-base font-semibold text-gray-900">Order ID: {o._id}</p>
-                  <p className="text-sm text-gray-600">Total: ${o.totalPrice.toFixed(2)}</p>
-                  <p className="text-sm text-gray-600">Status: {o.isPaid ? 'Paid' : 'Pending'} {o.isDelivered ? '(Delivered)' : ''}</p>
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => handleUpdateOrder(o._id, !o.isDelivered)}
-                    className={`text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300 ${o.isDelivered ? 'bg-green-500' : 'bg-yellow-500'}`}
-                  >
-                    {o.isDelivered ? 'Mark Undelivered' : 'Mark Delivered'}
-                  </button>
-                  <button
-                    onClick={() => openModal('order', o._id, o._id, handleDeleteOrder)}
-                    className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
-                  >
-                    Delete
-                  </button>
-                </div>
+          <>
+            {/* Bulk action buttons */}
+            <div className="flex space-x-3 mb-4">
+              <button
+                onClick={handleBulkMarkAsDelivered}
+                className={`flex-1 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md transition-all duration-300 ${selectedOrders.length > 0 ? 'bg-green-500 hover:shadow-lg hover:scale-105' : 'bg-green-300 cursor-not-allowed'}`}
+                disabled={selectedOrders.length === 0}
+              >
+                Mark {selectedOrders.length} as Delivered
+              </button>
+              <button
+                onClick={() => openModal('orders', 'multiple', `${selectedOrders.length} orders`, handleBulkDeleteOrders)}
+                className={`flex-1 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md transition-all duration-300 ${selectedOrders.length > 0 ? 'bg-red-500 hover:shadow-lg hover:scale-105' : 'bg-red-300 cursor-not-allowed'}`}
+                disabled={selectedOrders.length === 0}
+              >
+                Delete {selectedOrders.length} Orders
+              </button>
+            </div>
+            <div className="grid gap-4">
+              {/* Select All Checkbox */}
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={selectedOrders.length === orders.length && orders.length > 0}
+                  onChange={handleSelectAllOrders}
+                  className="rounded text-indigo-500 border-gray-300 focus:ring-indigo-400"
+                />
+                <label className="text-sm font-medium text-gray-700">Select All</label>
               </div>
-            ))}
-          </div>
+
+              {orders.map(o => (
+                <div key={o._id} className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-4 flex justify-between items-center animate-slide-up">
+                  {/* Checkbox for each order */}
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.includes(o._id)}
+                      onChange={() => handleSelectOrder(o._id)}
+                      className="rounded text-indigo-500 border-gray-300 focus:ring-indigo-400"
+                    />
+                    <div>
+                      <p className="text-base font-semibold text-gray-900">Order ID: {o._id}</p>
+                      <p className="text-sm text-gray-600">Total: ${o.totalPrice.toFixed(2)}</p>
+                      <p className="text-sm text-gray-600">Status: {o.isPaid ? 'Paid' : 'Pending'} {o.isDelivered ? '(Delivered)' : ''}</p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => handleUpdateOrder(o._id, !o.isDelivered)}
+                      className={`text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300 ${o.isDelivered ? 'bg-green-500' : 'bg-yellow-500'}`}
+                    >
+                      {o.isDelivered ? 'Mark Undelivered' : 'Mark Delivered'}
+                    </button>
+                    <button
+                      onClick={() => openModal('order', o._id, o._id, handleDeleteOrder)}
+                      className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transform transition-all duration-300"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* User Management - Only for superadmin */}
-      {user.role === 'superadmin' && (
+      {isSuperAdmin && (
         <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100/50 p-6 animate-slide-up">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Users</h2>
           {users.length === 0 ? (

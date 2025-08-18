@@ -8,11 +8,13 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
-  addReview
+  addReview,
+  getProductsByRole
 } = require('../controllers/productController');
 
 // Routes
 router.get('/', getProducts);
+router.get('/manage', protect, getProductsByRole);
 router.get('/:id', getProductById);
 router.post('/', protect, admin, upload.single('image'), createProduct);
 router.put('/:id', protect, admin, upload.single('image'), updateProduct);

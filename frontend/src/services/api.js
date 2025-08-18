@@ -37,8 +37,9 @@ export const register = (data) => API.post('/auth/register', data);
 export const login = (data) => API.post('/auth/login', data);
 
 // ---------- Products ----------
-export const getProducts = (params) => API.get('/products', { params });
+export const getProducts = () => API.get('/products');
 export const getProduct = (id) => API.get(`/products/${id}`);
+export const getProductsByRole = () => API.get('/products/manage');
 export const createProduct = (data) => API.post('/products', data);
 export const updateProduct = (id, data) => API.put(`/products/${id}`, data);
 export const deleteProduct = (id) => API.delete(`/products/${id}`);
