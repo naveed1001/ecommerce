@@ -39,7 +39,6 @@ const Checkout = () => {
   const { items } = useSelector((state) => state.cart);
   const [state, setState] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [total, setTotal] = useState(0);
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
     city: '',
@@ -50,6 +49,9 @@ const Checkout = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [missingFields, setMissingFields] = useState([]);
   const dialogRef = useRef(null);
+
+  // Calculate total price directly from cart items
+  const total = items.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 0), 0);
 
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -63,6 +65,7 @@ const Checkout = () => {
     }
   }, []);
 
+  // useEffect now only handles URL parameters related to payment results
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('error') === 'payment_failed') {
@@ -72,26 +75,7 @@ const Checkout = () => {
       setState('error');
       setErrorMessage('Invalid payment session. Please try again.');
     }
-
-    const fetchTotal = async () => {
-      if (!items.length) return;
-      try {
-        const { data } = await createOrder({
-          products: items.map(item => ({
-            productId: item._id || item.product?._id,
-            quantity: item.quantity,
-          })),
-          shippingAddress,
-          paymentMethod: 'stripe',
-        });
-        setTotal(data.totalPrice);
-      } catch (err) {
-        setState('error');
-        setErrorMessage(err.message || 'Failed to load order details. Please try again.');
-      }
-    };
-    fetchTotal();
-  }, [items, shippingAddress]);
+  }, []);
 
   const handleCheckout = useCallback(async () => {
     const missing = REQUIRED_FIELDS.filter(field => !shippingAddress[field].trim());
@@ -225,7 +209,7 @@ const Checkout = () => {
             OK
           </button>
         </dialog>
-
+        
         <style jsx>{`
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
           .font-inter {
