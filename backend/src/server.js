@@ -9,6 +9,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 const { webhook } = require('./controllers/webhookController');
+const redisClient = require('./config/redis');
 
 dotenv.config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);

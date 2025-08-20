@@ -52,9 +52,6 @@ const createProduct = async (req, res, next) => {
   if (error) return res.status(400).json({ message: error.details[0].message });
 
   try {
-    console.log('Create product - Request body:', req.body); // Debug
-    console.log('Create product - Uploaded file:', req.file); // Debug
-
     const product = new Product({
       ...req.body,
       image: req.file ? `/uploads/${req.file.filename}` : null,
@@ -64,7 +61,6 @@ const createProduct = async (req, res, next) => {
     await product.save();
     res.status(201).json(product);
   } catch (err) {
-    console.error('Create product error:', err); // Debug
     next(err);
   }
 };
@@ -101,7 +97,6 @@ const updateProduct = async (req, res, next) => {
 
     res.json(product);
   } catch (err) {
-    console.error('Update product error:', err); // Debug
     next(err);
   }
 };

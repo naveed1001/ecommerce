@@ -39,10 +39,11 @@ const Register = () => {
       formData.append('profileImage', profileImage);
     }
 
+    // In handleSubmit
     const resultAction = await dispatch(registerUser(formData));
-
     if (registerUser.fulfilled.match(resultAction)) {
-      navigate('/');
+      localStorage.setItem('pendingUserId', resultAction.payload.userId);
+      navigate('/verify-otp');
     }
   };
 

@@ -13,6 +13,7 @@ import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Wishlist from './components/Wishlist';
 import OrderDetails from './components/OrderDetails';
+import OTPVerification from './components/OTPVerification';
 
 function App() {
   const dispatch = useDispatch();
@@ -31,7 +32,6 @@ function App() {
     if (location.pathname.startsWith('/order/success')) {
       const sessionId = new URLSearchParams(location.search).get('session_id');
       if (!sessionId) {
-        console.error('No session ID provided in URL');
         navigate('/checkout?error=invalid_session');
       } else {
         console.log('Received success redirect with session_id:', sessionId);
@@ -48,6 +48,7 @@ function App() {
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-otp" element={<OTPVerification />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/dashboard" element={<UserDashboard />} />

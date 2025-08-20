@@ -12,6 +12,11 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
+const otpSchema = Joi.object({
+  userId: Joi.string().required(),
+  otp: Joi.string().length(4).pattern(/^[0-9]+$/).required(),
+});
+
 const productSchema = Joi.object({
   name: Joi.string().required(),
   description: Joi.string().required(),
@@ -75,10 +80,11 @@ const userUpdateSchema = Joi.object({
 
 module.exports = {
   registerSchema,
+  otpSchema,
   loginSchema,
   productSchema,
   categorySchema,
   orderSchema,
   userUpdateSchema,
-  reviewSchema,
+  reviewSchema
 };

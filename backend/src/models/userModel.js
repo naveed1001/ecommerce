@@ -6,9 +6,10 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin', 'superadmin'], default: 'user' },
-  profileImage: { type: String, default: '' }, // Added for profile image path
+  profileImage: { type: String, default: '' },
   wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-  orders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }]
+  orders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
+  isVerified: { type: Boolean, default: false },
 }, { timestamps: true });
 
 userSchema.pre('save', async function(next) {
